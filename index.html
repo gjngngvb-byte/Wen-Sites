@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wen Sites</title>
+<style>
+:root{
+--bg:#070b12;
+--card:rgba(20,26,38,.72);
+--text:#eef4ff;
+--muted:#9aa8c7;
+--accent:#6ea8ff;
+--border:rgba(255,255,255,.08);
+}
+*{box-sizing:border-box}
+body{
+margin:0;color:var(--text);
+font-family:Inter,Segoe UI,Arial,sans-serif;
+background:
+radial-gradient(circle at 10% 10%,rgba(110,168,255,.18),transparent 30%),
+radial-gradient(circle at 90% 80%,rgba(160,90,255,.18),transparent 35%),
+var(--bg);
+min-height:100vh;
+overflow-x:hidden;
+}
+.bg{
+position:fixed;inset:0;pointer-events:none;
+background-image:
+radial-gradient(2px 2px at 20px 30px,#fff6,transparent),
+radial-gradient(1px 1px at 100px 80px,#fff5,transparent),
+radial-gradient(1px 1px at 200px 150px,#fff4,transparent);
+background-size:300px 300px;
+animation:drift 40s linear infinite;
+}
+@keyframes drift{to{transform:translateY(-300px)}}
+header{
+padding:28px;
+position:sticky;top:0;
+backdrop-filter:blur(14px);
+background:rgba(7,11,18,.6);
+border-bottom:1px solid var(--border);
+z-index:5;
+}
+h1{margin:0;font-size:2.2rem}
+.sub{color:var(--muted);margin-top:6px}
+.controls{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+input,select{
+background:#111827;color:white;
+border:1px solid var(--border);
+padding:12px;border-radius:14px;
+}
+input{flex:1;min-width:220px}
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+gap:24px;padding:24px;
+}
+.card{
+position:relative;
+background:var(--card);
+border:1px solid var(--border);
+border-radius:22px;
+overflow:hidden;
+backdrop-filter:blur(18px);
+box-shadow:0 10px 40px rgba(0,0,0,.3);
+}
+.card:hover{transform:scale(1.02)}
+.preview{
+height:190px;
+display:flex;align-items:center;justify-content:center;
+background:linear-gradient(135deg,#1c2740,#101521);
+font-size:1.2rem;
+}
+.info{padding:16px}
+.name{font-weight:700;font-size:1.1rem}
+.desc{color:var(--muted);margin-top:8px;min-height:40px}
+.meta{display:flex;justify-content:space-between;margin-top:12px;color:var(--muted);font-size:.85rem}
+.menuBtn{
+position:absolute;right:12px;top:12px;border:none;
+width:38px;height:38px;border-radius:50%;cursor:pointer;
+background:rgba(0,0,0,.4);color:white;font-size:20px
+}
+.menu{
+display:none;position:absolute;right:12px;top:55px;
+background:#111827;border:1px solid var(--border);
+border-radius:12px;overflow:hidden;z-index:3;
+}
+.menu a{
+display:block;padding:10px 14px;color:white;text-decoration:none
+}
+.menu a:hover{background:#1f2937}
+.floatA{animation:fa 6s ease-in-out infinite}
+.floatB{animation:fb 8s ease-in-out infinite}
+.floatC{animation:fc 5s ease-in-out infinite}
+@keyframes fa{50%{transform:translateY(-10px)}}
+@keyframes fb{50%{transform:translateY(-18px)}}
+@keyframes fc{50%{transform:translateY(-6px)}}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<header>
+<h1>✨ Wen Sites</h1>
+<div class="sub">Todos os seus GitHub Pages em um só lugar</div>
+<div class="controls">
+<input id="search" placeholder="Pesquisar projeto...">
+<select id="sort">
+<option value="updated">Última atualização</option>
+<option value="name">Nome A-Z</option>
+<option value="stars">Estrelas</option>
+<option value="created">Criação</option>
+</select>
+</div>
+</header>
+
+<div id="grid" class="grid"></div>
+
+<script>
+const USER="gjngngvb-byte";
+let repos=[];
+
+async function load(){
+ const r=await fetch(`https://api.github.com/users/${USER}/repos?per_page=100`);
+ repos=await r.json();
+ render();
+}
+
+function render(){
+ const grid=document.getElementById("grid");
+ const q=document.getElementById("search").value.toLowerCase();
+ const sort=document.getElementById("sort").value;
+
+ let list=[...repos].filter(x=>
+ x.name.toLowerCase().includes(q) ||
+ (x.description||"").toLowerCase().includes(q));
+
+ if(sort==="name") list.sort((a,b)=>a.name.localeCompare(b.name));
+ if(sort==="stars") list.sort((a,b)=>b.stargazers_count-a.stargazers_count);
+ if(sort==="created") list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+ if(sort==="updated") list.sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at));
+
+ grid.innerHTML="";
+ const anim=["floatA","floatB","floatC"];
+
+ list.forEach((repo,i)=>{
+   const page=`https://${USER}.github.io/${repo.name}/`;
+   const cls=anim[i%3];
+
+   const card=document.createElement("div");
+   card.className=`card ${cls}`;
+   card.innerHTML=`
+   <button class="menuBtn">⋮</button>
+   <div class="menu">
+     <a href="${page}" target="_blank">Abrir Site</a>
+     <a href="${repo.html_url}" target="_blank">Abrir Repositório</a>
+   </div>
+   <div class="preview">🚀 ${repo.name}</div>
+   <div class="info">
+      <div class="name">${repo.name}</div>
+      <div class="desc">${repo.description||"Sem descrição"}</div>
+      <div class="meta">
+         <span>⭐ ${repo.stargazers_count}</span>
+         <span>${new Date(repo.updated_at).toLocaleDateString('pt-BR')}</span>
+      </div>
+   </div>`;
+
+   card.querySelector(".preview").onclick=()=>window.open(page,"_blank");
+
+   const btn=card.querySelector(".menuBtn");
+   const menu=card.querySelector(".menu");
+   btn.onclick=(e)=>{
+      e.stopPropagation();
+      menu.style.display=menu.style.display==="block"?"none":"block";
+   };
+
+   grid.appendChild(card);
+ });
+}
+
+search.oninput=render;
+sort.onchange=render;
+load();
+</script>
+</body>
+</html>
