@@ -201,7 +201,7 @@
             }
             return (
                 <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-md border border-gray-100 dark:border-gray-800/50 rounded-2xl overflow-hidden shadow-sm animate-pulse">
-                    <div className="w-full aspect-[16/9] bg-gray-200 dark:bg-gray-700/50"></div>
+                    <div className="w-full aspect-[4/3] bg-gray-200 dark:bg-gray-700/50"></div>
                     <div className="p-4 space-y-3">
                         <div className="h-4 bg-gray-200 dark:bg-gray-700/50 rounded w-3/4"></div>
                         <div className="h-3 bg-gray-200 dark:bg-gray-700/50 rounded w-full"></div>
@@ -218,6 +218,9 @@
         const DetailsModal = ({ repo, onClose }) => {
             if (!repo) return null;
 
+            // Cache buster: força atualizar a imagem se houver novos commits no repositório
+            const cacheBuster = new Date(repo.updated_at).getTime();
+
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
                     <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-gray-200/50 dark:border-gray-700/50" onClick={e => e.stopPropagation()}>
@@ -225,7 +228,7 @@
                             {/* Header image / screenshot large */}
                             <div className="w-full h-64 bg-gray-100 dark:bg-gray-800 relative pattern-bg">
                                 <img 
-                                    src={`https://image.thum.io/get/width/1200/crop/800/noanimate/${repo.pageUrl}`}
+                                    src={`https://image.thum.io/get/width/1000/crop/1200/zoom/300/noanimate/${repo.pageUrl}?v=${cacheBuster}`}
                                     alt={`Preview de ${repo.name}`}
                                     className="w-full h-full object-cover object-top opacity-90"
                                     onError={(e) => {
@@ -375,14 +378,17 @@
 
             const imgContainerClasses = isList 
                 ? 'w-48 flex-shrink-0 border-r border-gray-100/50 dark:border-gray-700/50' 
-                : 'w-full aspect-[16/9] border-b border-gray-100/50 dark:border-gray-700/50';
+                : 'w-full aspect-[4/3] border-b border-gray-100/50 dark:border-gray-700/50';
+
+            // Cache buster inteligente: força uma nova imagem APENAS se o repositório foi atualizado
+            const cacheBuster = new Date(repo.updated_at).getTime();
 
             return (
                 <div className={cardClasses} style={{ animationDelay }}>
                     {/* Thumbnail */}
                     <div className={`${imgContainerClasses} relative overflow-hidden bg-gray-100 dark:bg-gray-900 pattern-bg cursor-pointer`} onClick={() => window.open(repo.pageUrl, '_blank')}>
                         <img 
-                            src={`https://image.thum.io/get/width/600/crop/800/noanimate/${repo.pageUrl}`}
+                            src={`https://image.thum.io/get/width/600/crop/1200/zoom/300/noanimate/${repo.pageUrl}?v=${cacheBuster}`}
                             alt={repo.name}
                             className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
                             loading="lazy"
