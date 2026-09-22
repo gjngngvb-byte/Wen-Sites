@@ -140,7 +140,12 @@
             Copy: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
             Info: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
             Globe: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>,
-            Close: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            Close: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+            Image: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
+            Refresh: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
+            Upload: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
+            Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
+            Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         };
 
         // --- Utilitários ---
@@ -215,11 +220,11 @@
         };
 
         // Modal de Detalhes
-        const DetailsModal = ({ repo, onClose }) => {
+        const DetailsModal = ({ repo, onClose, imageCacheKey = 0 }) => {
             if (!repo) return null;
 
-            // Cache buster: força atualizar a imagem se houver novos commits no repositório
-            const cacheBuster = new Date(repo.updated_at).getTime();
+            // Cache buster: força atualizar a imagem se houver novos commits no repositório ou manualmente
+            const cacheBuster = new Date(repo.updated_at).getTime() + imageCacheKey;
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
@@ -304,8 +309,58 @@
             );
         };
 
+        // Modal para Adicionar Site Manualmente
+        const AddSiteModal = ({ isOpen, onClose, onAdd }) => {
+            const [formData, setFormData] = useState({ name: '', url: '', description: '', language: 'HTML' });
+
+            if (!isOpen) return null;
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!formData.name || !formData.url) return;
+                onAdd(formData);
+                setFormData({ name: '', url: '', description: '', language: 'HTML' });
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-800" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                            <h2 className="text-xl font-bold">Adicionar Site Manualmente</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                                <Icons.Close />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Nome do Site *</label>
+                                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="Ex: Meu Portfólio" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">URL (Link) *</label>
+                                <input required type="url" value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="https://..." />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Descrição</label>
+                                <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none resize-none h-24 transition-all" placeholder="Breve descrição do projeto..."></textarea>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Linguagem Principal</label>
+                                <input type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="Ex: HTML, React, Python..." />
+                            </div>
+                            <div className="pt-4 flex gap-3">
+                                <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
+                                <button type="submit" className="flex-1 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors shadow-lg shadow-brand-500/30">Adicionar Site</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
         // Card do Repositório
-        const RepoCard = ({ repo, viewMode, onOpenDetails, isFavorite, toggleFavorite, onHide, index }) => {
+        const RepoCard = ({ repo, viewMode, onOpenDetails, isFavorite, toggleFavorite, onHide, index, onDeleteCustom, imageCacheKey = 0 }) => {
             const [menuOpen, setMenuOpen] = useState(false);
             const menuRef = useRef(null);
 
@@ -380,8 +435,8 @@
                 ? 'w-48 flex-shrink-0 border-r border-gray-100/50 dark:border-gray-700/50' 
                 : 'w-full aspect-[4/3] border-b border-gray-100/50 dark:border-gray-700/50';
 
-            // Cache buster inteligente: força uma nova imagem APENAS se o repositório foi atualizado
-            const cacheBuster = new Date(repo.updated_at).getTime();
+            // Cache buster inteligente: força uma nova imagem APENAS se o repositório foi atualizado ou manualmente
+            const cacheBuster = new Date(repo.updated_at).getTime() + imageCacheKey;
 
             return (
                 <div className={cardClasses} style={{ animationDelay }}>
@@ -459,6 +514,11 @@
                                         <button onClick={() => { onHide(repo.id); setMenuOpen(false); }} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left">
                                             <Icons.EyeOff /> <span className="ml-3">Ocultar</span>
                                         </button>
+                                        {repo.isCustom && (
+                                            <button onClick={() => { onDeleteCustom(repo.id); setMenuOpen(false); }} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left border-t border-gray-200/50 dark:border-gray-700/50">
+                                                <Icons.Trash /> <span className="ml-3">Remover Site Manual</span>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -510,9 +570,14 @@
             // Dados persistidos
             const [favorites, setFavorites] = useLocalStorage('ghph_favorites', []);
             const [hiddenRepos, setHiddenRepos] = useLocalStorage('ghph_hidden', []);
+            const [customRepos, setCustomRepos] = useLocalStorage('ghph_custom_repos', []);
 
-            // Estado do Modal
+            // Estado do Modal e Imagens
             const [selectedRepo, setSelectedRepo] = useState(null);
+            const [isAddSiteModalOpen, setIsAddSiteModalOpen] = useState(false);
+            const [imageCacheKey, setImageCacheKey] = useState(0); // Estado para o Cache Buster global
+            
+            const fileInputRef = useRef(null);
 
             // Aplicar tema na raiz do HTML
             useEffect(() => {
@@ -574,7 +639,7 @@
 
             // Derivar e processar repositorios
             const repos = useMemo(() => {
-                return allFetchedRepos
+                const githubRepos = allFetchedRepos
                     // Filtro principal: Só mostrar pages, a não ser que showAllRepos seja true
                     .filter(repo => showAllRepos ? true : repo.has_pages)
                     .map(repo => {
@@ -584,7 +649,15 @@
                         }
                         return { ...repo, pageUrl };
                     });
-            }, [allFetchedRepos, showAllRepos]);
+                    
+                // Garantir que repós customizados tenham a propriedade pageUrl configurada
+                const formattedCustomRepos = customRepos.map(repo => ({
+                    ...repo,
+                    pageUrl: repo.homepage || repo.html_url
+                }));
+                
+                return [...githubRepos, ...formattedCustomRepos];
+            }, [allFetchedRepos, showAllRepos, customRepos]);
 
             const languagesAvailable = useMemo(() => {
                 const langs = new Set(repos.map(r => r.language).filter(Boolean));
@@ -641,6 +714,68 @@
                 }
             };
 
+            const handleDeleteCustomSite = (repoId) => {
+                if(window.confirm("Tem certeza que deseja remover este site manual?")) {
+                    setCustomRepos(customRepos.filter(r => r.id !== repoId));
+                    setFavorites(favorites.filter(id => id !== repoId)); 
+                }
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const json = JSON.parse(event.target.result);
+                        if(!Array.isArray(json)) throw new Error("O JSON deve ser uma lista (array).");
+                        
+                        const newRepos = json.map(item => ({
+                            id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            name: item.name || 'Site Sem Nome',
+                            full_name: `manual/${item.name || 'Site'}`,
+                            homepage: item.url,
+                            html_url: item.url,
+                            description: item.description || '',
+                            language: item.language || 'HTML',
+                            stargazers_count: item.stars || 0,
+                            forks_count: 0,
+                            has_pages: true,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            isCustom: true
+                        }));
+                        
+                        setCustomRepos(prev => [...prev, ...newRepos]);
+                        alert(`${newRepos.length} sites importados com sucesso!`);
+                    } catch (err) {
+                        alert('Erro ao ler o arquivo JSON. Certifique-se de que o formato está correto.');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = ''; // Reset input
+            };
+
+            const handleAddManualSite = (data) => {
+                const newRepo = {
+                    id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: data.name,
+                    full_name: `manual/${data.name}`,
+                    homepage: data.url,
+                    html_url: data.url,
+                    description: data.description,
+                    language: data.language || 'HTML',
+                    stargazers_count: 0,
+                    forks_count: 0,
+                    has_pages: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    isCustom: true
+                };
+                setCustomRepos(prev => [...prev, newRepo]);
+            };
+
             const exportData = (format) => {
                 if (repos.length === 0) return;
                 let dataStr, mimeType, fileName;
@@ -689,9 +824,55 @@
                             </h1>
                         </div>
 
-                        <button onClick={toggleTheme} className="p-3.5 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 text-gray-600 dark:text-gray-300 hover:shadow-lg dark:hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300">
-                            {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {/* Refresh Button */}
+                            <button 
+                                onClick={() => fetchUserRepos()} 
+                                disabled={loading}
+                                className="p-3.5 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 text-gray-600 dark:text-gray-300 hover:shadow-lg dark:hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center disabled:opacity-50"
+                                title="Forçar Atualização do GitHub"
+                            >
+                                <Icons.Refresh className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                            </button>
+
+                            {/* Botão de Cache Buster de Imagens */}
+                            <button 
+                                onClick={() => setImageCacheKey(Date.now())} 
+                                className="p-3.5 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 text-gray-600 dark:text-gray-300 hover:shadow-lg dark:hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center"
+                                title="Recarregar e forçar atualização das imagens"
+                            >
+                                <Icons.Image />
+                            </button>
+                            
+                            {/* Actions Group (Add Manual / Import JSON) */}
+                            <div className="relative group">
+                                <button className="px-4 py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-semibold backdrop-blur-md border border-brand-500/50 shadow-lg shadow-brand-500/30 hover:shadow-brand-500/50 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2">
+                                    <Icons.Plus /> <span className="hidden sm:inline">Adicionar Site</span>
+                                </button>
+                                {/* Dropdown Menu */}
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-100/50 dark:border-gray-700/50 py-1.5 z-[100] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right">
+                                    <button onClick={() => setIsAddSiteModalOpen(true)} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left">
+                                        <Icons.Plus /> <span className="ml-3">Manualmente</span>
+                                    </button>
+                                    <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left">
+                                        <Icons.Upload /> <span className="ml-3">Importar JSON</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* Hidden file input for JSON */}
+                            <input 
+                                type="file" 
+                                accept=".json" 
+                                ref={fileInputRef} 
+                                style={{ display: 'none' }} 
+                                onChange={handleFileUpload}
+                            />
+
+                            <button onClick={toggleTheme} className="p-3.5 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 text-gray-600 dark:text-gray-300 hover:shadow-lg dark:hover:shadow-brand-500/10 hover:-translate-y-1 transition-all duration-300">
+                                {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
+                            </button>
+                        </div>
                     </header>
 
                     {/* Barra de Controles e Filtros */}
@@ -824,6 +1005,8 @@
                                             toggleFavorite={toggleFavorite}
                                             onHide={hideRepo}
                                             index={index}
+                                            onDeleteCustom={handleDeleteCustomSite}
+                                            imageCacheKey={imageCacheKey}
                                         />
                                     ))}
                                 </div>
@@ -854,8 +1037,16 @@
                         <DetailsModal 
                             repo={selectedRepo} 
                             onClose={() => setSelectedRepo(null)} 
+                            imageCacheKey={imageCacheKey}
                         />
                     )}
+
+                    {/* Modal Add Site Manual */}
+                    <AddSiteModal 
+                        isOpen={isAddSiteModalOpen} 
+                        onClose={() => setIsAddSiteModalOpen(false)} 
+                        onAdd={handleAddManualSite} 
+                    />
                 </div>
             );
         };
