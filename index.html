@@ -222,47 +222,68 @@
         // Captura de tela com provedores alternativos. Nenhum favicon é usado como prévia.
         const SiteScreenshot = ({ url, name, className = '', cacheBuster = '' }) => {
             const [providerIndex, setProviderIndex] = useState(0);
-            const [webshotUrl, setWebshotUrl] = useState('');
-            const [webshotTried, setWebshotTried] = useState(false);
+            const [screenshotUrl, setScreenshotUrl] = useState('');
             const [failed, setFailed] = useState(false);
+
+            const safeUrl = (() => { try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch { return ''; } })();
+            const imageProviders = safeUrl ? [
+                `https://s.wordpress.com/mshots/v1/${encodeURIComponent(safeUrl)}?w=800&h=600`
+            ] : [];
 
             useEffect(() => {
                 setProviderIndex(0);
-                setWebshotUrl('');
-                setWebshotTried(false);
+                setScreenshotUrl('');
                 setFailed(false);
-            }, [url, cacheBuster]);
+            }, [safeUrl, cacheBuster]);
 
-            const safeUrl = (() => { try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch { return ''; } })();
-            const providers = safeUrl ? [
-                `https://image.thum.io/get/width/600/crop/1200/zoom/300/noanimate/${safeUrl}?v=${encodeURIComponent(cacheBuster)}`,
-                `https://s.wordpress.com/mshots/v1/${encodeURIComponent(safeUrl)}?w=800&h=600`,
-                `https://api.microlink.io/?url=${encodeURIComponent(safeUrl)}&screenshot=true&meta=false&embed=screenshot.url`
-            ] : [];
+            // Depois do mShots, tenta Microlink (que retorna JSON) e só então Webshot.
+            // As chamadas assíncronas ficam em effects, nunca durante a renderização.
+            useEffect(() => {
+                if (!safeUrl || providerIndex < imageProviders.length || screenshotUrl || failed) return;
+                let cancelled = false;
 
-            const tryWebshot = async () => {
-                if (webshotTried || !safeUrl) { setFailed(true); return; }
-                setWebshotTried(true);
-                try {
-                    const response = await fetch('https://webshot.site/api/capture', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: safeUrl, format: 'jpg', mode: 'desktop_full' })
-                    });
-                    if (!response.ok) throw new Error('Screenshot provider unavailable');
-                    const blob = await response.blob();
-                    if (!blob.type.startsWith('image/')) throw new Error('Invalid screenshot response');
-                    setWebshotUrl(URL.createObjectURL(blob));
-                } catch {
-                    setFailed(true);
-                }
-            };
+                const captureWithFallbacks = async () => {
+                    try {
+                        const metaResponse = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(safeUrl)}&screenshot=true&meta=false`);
+                        if (metaResponse.ok) {
+                            const meta = await metaResponse.json();
+                            const imageUrl = meta?.data?.screenshot?.url;
+                            if (imageUrl && !cancelled) {
+                                setScreenshotUrl(imageUrl);
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Microlink não conseguiu gerar a captura:', error);
+                    }
+
+                    if (cancelled) return;
+                    try {
+                        const response = await fetch('https://webshot.site/api/capture', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: safeUrl, format: 'jpg', mode: 'desktop_full' })
+                        });
+                        if (!response.ok) throw new Error(`Webshot respondeu HTTP ${response.status}`);
+                        const blob = await response.blob();
+                        if (!blob.type.startsWith('image/')) throw new Error('Resposta do Webshot não é uma imagem');
+                        const objectUrl = URL.createObjectURL(blob);
+                        if (!cancelled) setScreenshotUrl(objectUrl);
+                        else URL.revokeObjectURL(objectUrl);
+                    } catch (error) {
+                        console.warn('Os serviços alternativos não conseguiram gerar a captura:', error);
+                        if (!cancelled) setFailed(true);
+                    }
+                };
+
+                captureWithFallbacks();
+                return () => { cancelled = true; };
+            }, [safeUrl, providerIndex, screenshotUrl, failed, imageProviders.length]);
 
             if (!safeUrl || failed) return <div className={className + ' flex flex-col items-center justify-center bg-gray-900 text-gray-400 text-center p-4'}><Icons.Code /><span className="mt-2 text-sm">Prévia indisponível</span><span className="text-xs mt-1">Abra o site para visualizar</span></div>;
-            if (webshotUrl) return <img src={webshotUrl} alt={`Captura de tela de ${name}`} className={className} loading="lazy" />;
-            if (providerIndex < providers.length) return <img src={providers[providerIndex]} alt={`Captura de tela de ${name}`} className={className} loading="lazy" onError={() => setProviderIndex(index => index + 1)} />;
-            if (!webshotTried) { tryWebshot(); return <div className={className + ' flex items-center justify-center bg-gray-900 text-gray-400'}>Tentando outra captura…</div>; }
-            return <div className={className + ' flex items-center justify-center bg-gray-900 text-gray-400'}>Carregando prévia…</div>;
+            if (screenshotUrl) return <img src={screenshotUrl} alt={`Captura de tela de ${name}`} className={className} loading="lazy" />;
+            if (providerIndex < imageProviders.length) return <img src={imageProviders[providerIndex]} alt={`Captura de tela de ${name}`} className={className} loading="lazy" onError={() => setProviderIndex(index => index + 1)} />;
+            return <div className={className + ' flex items-center justify-center bg-gray-900 text-gray-400'}>Tentando outras capturas…</div>;
         };
 
         // Modal de Detalhes
