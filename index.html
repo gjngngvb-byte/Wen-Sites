@@ -312,6 +312,7 @@
         // Modal para adicionar um site pelo link, preenchendo os dados automaticamente
         const AddSiteModal = ({ isOpen, onClose, onAdd }) => {
             const [url, setUrl] = useState('');
+            const [githubRepoUrl, setGithubRepoUrl] = useState('');
             const [metadata, setMetadata] = useState({ name: '', description: '', language: 'HTML' });
             const [loadingMetadata, setLoadingMetadata] = useState(false);
             const [saving, setSaving] = useState(false);
@@ -321,6 +322,7 @@
             useEffect(() => {
                 if (isOpen) {
                     setUrl('');
+                    setGithubRepoUrl('');
                     setMetadata({ name: '', description: '', language: 'HTML' });
                     setLoadingMetadata(false);
                     setSaving(false);
@@ -379,7 +381,7 @@
                 }
                 setSaving(true);
                 try {
-                    const success = await onAdd({ name: metadata.name, url: url.trim(), description: metadata.description, language: metadata.language || 'Website' });
+                    const success = await onAdd({ name: metadata.name, url: url.trim(), githubRepoUrl: githubRepoUrl.trim(), description: metadata.description, language: metadata.language || 'Website' });
                     if (success) onClose();
                 } catch (err) {
                     setMessage(err?.message || 'Não foi possível adicionar esse site agora.');
@@ -409,6 +411,11 @@
                                         {loadingMetadata ? 'Buscando...' : 'Buscar dados'}
                                     </button>
                                 </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Repositório do GitHub <span className="text-gray-400 font-normal">(opcional)</span></label>
+                                <input type="url" maxLength="2048" value={githubRepoUrl} onChange={e => setGithubRepoUrl(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="https://github.com/usuario/repositorio" />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use se o site foi criado em um repositório do GitHub, mesmo que esteja publicado em outro serviço.</p>
                             </div>
                             {metadataLoaded && (
                                 <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-4 space-y-3">
@@ -736,7 +743,7 @@
             const fetchCommunitySites = async () => {
                 try {
                     const response = await fetch(
-                        `${SUPABASE_URL}/rest/v1/site_submissions?select=id,name,url,description,language,created_at&status=eq.approved&order=created_at.desc`,
+                        `${SUPABASE_URL}/rest/v1/site_submissions?select=id,name,url,github_repo_url,description,language,created_at&status=eq.approved&order=created_at.desc`,
                         {
                             headers: {
                                 apikey: SUPABASE_PUBLISHABLE_KEY,
@@ -752,6 +759,7 @@
                         full_name: `community/${site.name}`,
                         homepage: site.url,
                         html_url: site.url,
+                        githubRepoUrl: site.github_repo_url || '',
                         pageUrl: site.url,
                         description: site.description || '',
                         language: site.language || 'HTML',
@@ -798,6 +806,7 @@
                         body: JSON.stringify({
                             name: siteName,
                             url: parsedUrl.href,
+                            github_repo_url: String(data.githubRepoUrl || '').trim() || null,
                             description: String(data.description || '').trim().slice(0, 500),
                             language: String(data.language || 'Website').slice(0, 40),
                             status: 'approved'
