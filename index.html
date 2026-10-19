@@ -827,7 +827,7 @@
                             alert('Esse site já está cadastrado. Nenhuma duplicata foi criada. Se quiser atualizar o repositório, informe o link do GitHub no campo opcional.');
                             return false;
                         }
-                        const normalizedUrl = parsedUrl.href.toLowerCase().replace(/\\/+$/, '');
+                                                const normalizedUrl = parsedUrl.href.toLowerCase().replace(/\/+$/, '');
                         const updateResponse = await fetch(
                             `${SUPABASE_URL}/rest/v1/site_submissions?normalized_url=eq.${encodeURIComponent(normalizedUrl)}&status=eq.approved`,
                             {
