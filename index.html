@@ -823,8 +823,38 @@
                         })
                     });
                     if (response.status === 409) {
-                        alert('Esse endereço já está cadastrado na galeria.');
-                        return false;
+                        if (!githubRepoUrl) {
+                            alert('Esse site já está cadastrado. Nenhuma duplicata foi criada. Se quiser atualizar o repositório, informe o link do GitHub no campo opcional.');
+                            return false;
+                        }
+                        const normalizedUrl = parsedUrl.href.toLowerCase().replace(/\\/+$/, '');
+                        const updateResponse = await fetch(
+                            `${SUPABASE_URL}/rest/v1/site_submissions?normalized_url=eq.${encodeURIComponent(normalizedUrl)}&status=eq.approved`,
+                            {
+                                method: 'PATCH',
+                                headers: {
+                                    apikey: SUPABASE_PUBLISHABLE_KEY,
+                                    Authorization: `Bearer ${SUPABASE_ANON_JWT}`,
+                                    'Content-Type': 'application/json',
+                                    Prefer: 'return=representation'
+                                },
+                                body: JSON.stringify({ github_repo_url: githubRepoUrl })
+                            }
+                        );
+                        if (!updateResponse.ok) {
+                            const detail = await updateResponse.text();
+                            console.error('Wen-Sites repository update error:', detail);
+                            alert('O site já existe, mas não foi possível atualizar o repositório do GitHub.');
+                            return false;
+                        }
+                        const updatedRows = await updateResponse.json();
+                        if (!updatedRows.length) {
+                            alert('O site já existe, mas não foi possível localizar um cadastro que possa ser atualizado.');
+                            return false;
+                        }
+                        await fetchCommunitySites();
+                        alert('Esse site já existia. O repositório do GitHub foi atualizado sem criar uma duplicata!');
+                        return true;
                     }
                     if (!response.ok) {
                         const detail = await response.text();
