@@ -1038,7 +1038,7 @@
                                 {/* Dropdown Menu */}
                                 <div className="absolute right-0 top-full mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-100/50 dark:border-gray-700/50 py-1.5 z-[100] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right">
                                     <button onClick={() => setIsAddSiteModalOpen(true)} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left">
-                                        <Icons.Plus /> <span className="ml-3">Manualmente</span>
+                                        <Icons.Plus /> <span className="ml-3">Por link (automático)</span>
                                     </button>
                                     <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left">
                                         <Icons.Upload /> <span className="ml-3">Importar JSON</span>
@@ -1231,7 +1231,7 @@
                     <AddSiteModal 
                         isOpen={isAddSiteModalOpen} 
                         onClose={() => setIsAddSiteModalOpen(false)} 
-                        onAdd={handleAddManualSite} 
+                        onAdd={handleSubmitCommunitySite} 
                     />
                 </div>
             );
