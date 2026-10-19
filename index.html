@@ -575,6 +575,9 @@
             // Sites enviados pela comunidade (Supabase)
             const SUPABASE_URL = 'https://jucazqfebprltfjiprhc.supabase.co';
             const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_f0RU6Tc_1kWGzpwiEAwr4Q_OVIJI-Lo';
+            // Chave anon legada usada somente como JWT público de fallback no header Authorization.
+            // A publishable key fica no header apikey; ambas dependem das políticas RLS.
+            const SUPABASE_ANON_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1Y2F6cWZlYnBybHRmamlwcmhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjcwNjYsImV4cCI6MjEwNzk0MzA2Nn0.qSilylElymmSDxB2o3Ub6-PSkZQUnstugNPofezqORo';
             const [communitySites, setCommunitySites] = useState([]);
             const [submissionName, setSubmissionName] = useState('');
             const [submissionUrl, setSubmissionUrl] = useState('');
@@ -655,7 +658,7 @@
                         {
                             headers: {
                                 apikey: SUPABASE_PUBLISHABLE_KEY,
-                                Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+                                Authorization: `Bearer ${SUPABASE_ANON_JWT}`
                             }
                         }
                     );
@@ -715,7 +718,7 @@
                         method: 'POST',
                         headers: {
                             apikey: SUPABASE_PUBLISHABLE_KEY,
-                            Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+                            Authorization: `Bearer ${SUPABASE_ANON_JWT}`,
                             'Content-Type': 'application/json',
                             Prefer: 'return=minimal'
                         },
