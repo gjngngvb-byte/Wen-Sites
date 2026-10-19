@@ -309,49 +309,131 @@
             );
         };
 
-        // Modal para Adicionar Site Manualmente
+        // Modal para adicionar um site pelo link, preenchendo os dados automaticamente
         const AddSiteModal = ({ isOpen, onClose, onAdd }) => {
-            const [formData, setFormData] = useState({ name: '', url: '', description: '', language: 'HTML' });
+            const [url, setUrl] = useState('');
+            const [metadata, setMetadata] = useState({ name: '', description: '', language: 'HTML' });
+            const [loadingMetadata, setLoadingMetadata] = useState(false);
+            const [saving, setSaving] = useState(false);
+            const [message, setMessage] = useState('');
+            const [metadataLoaded, setMetadataLoaded] = useState(false);
+
+            useEffect(() => {
+                if (isOpen) {
+                    setUrl('');
+                    setMetadata({ name: '', description: '', language: 'HTML' });
+                    setLoadingMetadata(false);
+                    setSaving(false);
+                    setMessage('');
+                    setMetadataLoaded(false);
+                }
+            }, [isOpen]);
 
             if (!isOpen) return null;
 
-            const handleSubmit = (e) => {
+            const fetchMetadata = async () => {
+                let parsed;
+                try {
+                    parsed = new URL(url.trim());
+                    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('protocol');
+                } catch {
+                    setMessage('Digite um link válido começando com https:// ou http://.');
+                    return;
+                }
+
+                setLoadingMetadata(true);
+                setMessage('');
+                const fallbackName = parsed.hostname.replace(/^www\./i, '');
+                try {
+                    const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(parsed.href)}`);
+                    if (!response.ok) throw new Error('metadata');
+                    const payload = await response.json();
+                    if (payload.status !== 'success' || !payload.data) throw new Error('metadata');
+                    const data = payload.data;
+                    setMetadata({
+                        name: (data.title || fallbackName).trim().slice(0, 100),
+                        description: (data.description || '').trim().slice(0, 500),
+                        language: data.lang ? String(data.lang).slice(0, 40) : 'Website'
+                    });
+                    setMetadataLoaded(true);
+                    setMessage('Informações encontradas automaticamente. Você pode revisar antes de adicionar.');
+                } catch {
+                    setMetadata({
+                        name: fallbackName.slice(0, 100),
+                        description: '',
+                        language: 'Website'
+                    });
+                    setMetadataLoaded(true);
+                    setMessage('Não foi possível ler os metadados desse endereço. Preenchemos o nome pelo domínio; você pode ajustar os dados.');
+                } finally {
+                    setLoadingMetadata(false);
+                }
+            };
+
+            const handleSubmit = async (e) => {
                 e.preventDefault();
-                if (!formData.name || !formData.url) return;
-                onAdd(formData);
-                setFormData({ name: '', url: '', description: '', language: 'HTML' });
-                onClose();
+                setMessage('');
+                if (!metadataLoaded) {
+                    await fetchMetadata();
+                    return;
+                }
+                setSaving(true);
+                try {
+                    const success = await onAdd({ name: metadata.name, url: url.trim(), description: metadata.description, language: metadata.language || 'Website' });
+                    if (success) onClose();
+                } catch (err) {
+                    setMessage(err?.message || 'Não foi possível adicionar esse site agora.');
+                } finally {
+                    setSaving(false);
+                }
             };
 
             return (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
-                    <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-800" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-800" onClick={e => e.stopPropagation()}>
                         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                            <h2 className="text-xl font-bold">Adicionar Site Manualmente</h2>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                            <div>
+                                <h2 className="text-xl font-bold">Adicionar site</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Cole o link. O nome e a descrição serão buscados automaticamente.</p>
+                            </div>
+                            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
                                 <Icons.Close />
                             </button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Nome do Site *</label>
-                                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="Ex: Meu Portfólio" />
+                                <label className="block text-sm font-medium mb-1">Link do site *</label>
+                                <div className="flex gap-2">
+                                    <input required type="url" maxLength="2048" value={url} onChange={e => { setUrl(e.target.value); setMetadataLoaded(false); setMessage(''); }} className="min-w-0 flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="https://exemplo.com" />
+                                    <button type="button" onClick={fetchMetadata} disabled={!url.trim() || loadingMetadata || saving} className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold text-sm disabled:opacity-50">
+                                        {loadingMetadata ? 'Buscando...' : 'Buscar dados'}
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">URL (Link) *</label>
-                                <input required type="url" value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="https://..." />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Descrição</label>
-                                <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none resize-none h-24 transition-all" placeholder="Breve descrição do projeto..."></textarea>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Linguagem Principal</label>
-                                <input type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-brand-500 outline-none transition-all" placeholder="Ex: HTML, React, Python..." />
-                            </div>
-                            <div className="pt-4 flex gap-3">
-                                <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
-                                <button type="submit" className="flex-1 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors shadow-lg shadow-brand-500/30">Adicionar Site</button>
+                            {metadataLoaded && (
+                                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(url).hostname)}&sz=64`} alt="" className="w-10 h-10 rounded-xl bg-white p-1" />
+                                        <div className="min-w-0">
+                                            <p className="font-bold truncate">{metadata.name || 'Site sem título'}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{url}</p>
+                                        </div>
+                                    </div>
+                                    <label className="block text-sm font-medium">Nome
+                                        <input required minLength="2" maxLength="100" value={metadata.name} onChange={e => setMetadata({...metadata, name: e.target.value})} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 outline-none focus:ring-2 focus:ring-brand-500" />
+                                    </label>
+                                    <label className="block text-sm font-medium">Descrição
+                                        <textarea maxLength="500" rows="2" value={metadata.description} onChange={e => setMetadata({...metadata, description: e.target.value})} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 outline-none focus:ring-2 focus:ring-brand-500 resize-none" placeholder="Descrição não encontrada. Você pode adicionar uma." />
+                                    </label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Os dados são obtidos dos metadados públicos do site e podem ser ajustados antes de publicar.</p>
+                                </div>
+                            )}
+                            {message && <p role="status" aria-live="polite" className="text-sm text-gray-600 dark:text-gray-300">{message}</p>}
+                            <div className="pt-2 flex gap-3">
+                                <button type="button" onClick={onClose} className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
+                                <button type="submit" disabled={loadingMetadata || saving || !url.trim()} className="flex-1 px-4 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-colors shadow-lg shadow-brand-500/30 disabled:opacity-50">
+                                    {loadingMetadata ? 'Buscando dados...' : saving ? 'Adicionando...' : metadataLoaded ? 'Adicionar à galeria' : 'Buscar informações'}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -483,6 +565,11 @@
                             <h3 className={`font-extrabold text-gray-900 dark:text-white truncate pr-4 ${isCompact ? 'text-base' : 'text-xl'} cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors`} onClick={() => onOpenDetails(repo)}>
                                 {repo.name}
                             </h3>
+                            {repo.isGitHubPage && (
+                                <span title="Site publicado pelo GitHub Pages" aria-label="GitHub Pages" className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200">
+                                    <Icons.Code />
+                                </span>
+                            )}
                             
                             {/* Menu Contextual */}
                             <div className="relative" ref={menuRef}>
@@ -516,7 +603,7 @@
                                         </button>
                                         {repo.isCustom && (
                                             <button onClick={() => { onDeleteCustom(repo.id); setMenuOpen(false); }} className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left border-t border-gray-200/50 dark:border-gray-700/50">
-                                                <Icons.Trash /> <span className="ml-3">Remover Site Manual</span>
+                                                <Icons.Trash /> <span className="ml-3">Remover Site Adicionado</span>
                                             </button>
                                         )}
                                     </div>
@@ -579,11 +666,6 @@
             // A publishable key fica no header apikey; ambas dependem das políticas RLS.
             const SUPABASE_ANON_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1Y2F6cWZlYnBybHRmamlwcmhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNjcwNjYsImV4cCI6MjEwNzk0MzA2Nn0.qSilylElymmSDxB2o3Ub6-PSkZQUnstugNPofezqORo';
             const [communitySites, setCommunitySites] = useState([]);
-            const [submissionName, setSubmissionName] = useState('');
-            const [submissionUrl, setSubmissionUrl] = useState('');
-            const [submissionDescription, setSubmissionDescription] = useState('');
-            const [submissionStatus, setSubmissionStatus] = useState('');
-            const [submittingSite, setSubmittingSite] = useState(false);
 
             // Estado do Modal e Imagens
             const [selectedRepo, setSelectedRepo] = useState(null);
@@ -689,30 +771,21 @@
                 fetchCommunitySites();
             }, []);
 
-            const handleSubmitCommunitySite = async (event) => {
-                event.preventDefault();
-                setSubmissionStatus('');
+            const handleSubmitCommunitySite = async (data) => {
                 let parsedUrl;
                 try {
-                    parsedUrl = new URL(submissionUrl.trim());
+                    parsedUrl = new URL(data.url.trim());
+                    if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('protocol');
                 } catch {
-                    setSubmissionStatus('Informe um endereço válido começando com https:// ou http://.');
-                    return;
+                    alert('Informe um endereço válido começando com https:// ou http://.');
+                    return false;
                 }
-                if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-                    setSubmissionStatus('O endereço precisa usar HTTP ou HTTPS.');
-                    return;
-                }
-                if (submissionName.trim().length < 2 || submissionName.trim().length > 100) {
-                    setSubmissionStatus('O nome precisa ter entre 2 e 100 caracteres.');
-                    return;
-                }
-                if (submissionDescription.length > 500) {
-                    setSubmissionStatus('A descrição pode ter no máximo 500 caracteres.');
-                    return;
+                const siteName = String(data.name || parsedUrl.hostname).trim().slice(0, 100);
+                if (siteName.length < 2) {
+                    alert('Não foi possível identificar o nome do site.');
+                    return false;
                 }
 
-                setSubmittingSite(true);
                 try {
                     const response = await fetch(`${SUPABASE_URL}/rest/v1/site_submissions`, {
                         method: 'POST',
@@ -723,29 +796,30 @@
                             Prefer: 'return=minimal'
                         },
                         body: JSON.stringify({
-                            name: submissionName.trim(),
+                            name: siteName,
                             url: parsedUrl.href,
-                            description: submissionDescription.trim(),
-                            language: 'HTML',
-                            status: 'pending'
+                            description: String(data.description || '').trim().slice(0, 500),
+                            language: String(data.language || 'Website').slice(0, 40),
+                            status: 'approved'
                         })
                     });
                     if (response.status === 409) {
-                        setSubmissionStatus('Esse endereço já foi enviado anteriormente.');
-                    } else if (!response.ok) {
+                        alert('Esse endereço já está cadastrado na galeria.');
+                        return false;
+                    }
+                    if (!response.ok) {
                         const detail = await response.text();
                         console.error('Wen-Sites submission error:', detail);
-                        setSubmissionStatus('Não foi possível enviar agora. Confira o endereço ou tente novamente mais tarde.');
-                    } else {
-                        setSubmissionName('');
-                        setSubmissionUrl('');
-                        setSubmissionDescription('');
-                        setSubmissionStatus('Link enviado! Ele aparecerá na galeria depois de ser aprovado.');
+                        alert('Não foi possível adicionar o site. Tente novamente em instantes.');
+                        return false;
                     }
+                    await fetchCommunitySites();
+                    alert('Site adicionado à galeria compartilhada com sucesso!');
+                    return true;
                 } catch (err) {
-                    setSubmissionStatus('Falha de conexão ao enviar. Tente novamente mais tarde.');
-                } finally {
-                    setSubmittingSite(false);
+                    console.error('Wen-Sites submission failed:', err);
+                    alert('Falha de conexão ao adicionar o site. Tente novamente mais tarde.');
+                    return false;
                 }
             };
 
@@ -759,7 +833,7 @@
                         if (!pageUrl || !pageUrl.startsWith('http')) {
                             pageUrl = `https://${TARGET_USER}.github.io/${repo.name}`;
                         }
-                        return { ...repo, pageUrl };
+                        return { ...repo, pageUrl, isGitHubPage: !!repo.has_pages };
                     });
                     
                 // Garantir que repós customizados tenham a propriedade pageUrl configurada
@@ -986,34 +1060,6 @@
                             </button>
                         </div>
                     </header>
-
-                    {/* Envio comunitário: todos podem sugerir, mas a publicação depende de aprovação */}
-                    <section className="mb-10 rounded-3xl border border-brand-200/60 dark:border-brand-700/40 bg-white/75 dark:bg-gray-800/50 backdrop-blur-xl p-6 sm:p-8 shadow-lg shadow-gray-200/20 dark:shadow-black/20">
-                        <div className="max-w-3xl">
-                            <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">Compartilhe um site com a comunidade</h2>
-                            <p className="mt-2 mb-6 text-sm text-gray-600 dark:text-gray-300">Envie um link para entrar na galeria do Wen-Sites. Para evitar spam e links inadequados, cada sugestão passa por aprovação antes de ficar pública.</p>
-                            <form onSubmit={handleSubmitCommunitySite} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    Nome do site
-                                    <input required minLength="2" maxLength="100" value={submissionName} onChange={e => setSubmissionName(e.target.value)} placeholder="Ex.: Meu portfólio" className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500" />
-                                </label>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    Link do site
-                                    <input required type="url" maxLength="2048" value={submissionUrl} onChange={e => setSubmissionUrl(e.target.value)} placeholder="https://exemplo.com" className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500" />
-                                </label>
-                                <label className="block sm:col-span-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    Descrição (opcional)
-                                    <textarea maxLength="500" rows="2" value={submissionDescription} onChange={e => setSubmissionDescription(e.target.value)} placeholder="Conte em poucas palavras o que as pessoas vão encontrar." className="mt-1.5 w-full resize-y rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500" />
-                                </label>
-                                <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center gap-3">
-                                    <button type="submit" disabled={submittingSite} className="inline-flex items-center justify-center rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-60 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/20 transition-all">
-                                        {submittingSite ? 'Enviando...' : 'Enviar link para aprovação'}
-                                    </button>
-                                    {submissionStatus && <p role="status" aria-live="polite" className="text-sm text-gray-600 dark:text-gray-300">{submissionStatus}</p>}
-                                </div>
-                            </form>
-                        </div>
-                    </section>
 
                     {/* Barra de Controles e Filtros */}
                     <div className="bg-white/70 dark:bg-gray-800/60 backdrop-blur-xl border border-gray-100/50 dark:border-gray-700/50 rounded-3xl p-5 mb-10 shadow-lg shadow-gray-200/20 dark:shadow-black/20 flex flex-col lg:flex-row gap-5 justify-between items-center relative z-10">
