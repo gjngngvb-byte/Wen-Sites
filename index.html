@@ -298,8 +298,8 @@
                                     <a href={repo.pageUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center px-6 py-3.5 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/30 hover:shadow-brand-500/50 hover:-translate-y-0.5">
                                         <Icons.ExternalLink /> <span className="ml-2">Abrir Página do Projeto</span>
                                     </a>
-                                    <a href={repo.html_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center px-6 py-3.5 bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-bold transition-all border border-gray-200/50 dark:border-gray-700/50 hover:-translate-y-0.5">
-                                        <Icons.Code /> <span className="ml-2">Ver Código Fonte</span>
+                                    <a href={repo.githubRepoUrl || repo.html_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center px-6 py-3.5 bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-bold transition-all border border-gray-200/50 dark:border-gray-700/50 hover:-translate-y-0.5">
+                                        <Icons.Code /> <span className="ml-2">{repo.githubRepoUrl ? "Ver Repositório GitHub" : "Ver Código Fonte"}</span>
                                     </a>
                                 </div>
                             </div>
@@ -787,6 +787,16 @@
                 } catch {
                     alert('Informe um endereço válido começando com https:// ou http://.');
                     return false;
+                }
+                const githubRepoUrl = String(data.githubRepoUrl || '').trim();
+                if (githubRepoUrl) {
+                    try {
+                        const repo = new URL(githubRepoUrl);
+                        if (repo.hostname.toLowerCase() !== 'github.com' || !/^\/[\w.-]+\/[\w.-]+\/?$/.test(repo.pathname)) throw new Error('repo');
+                    } catch {
+                        alert('Informe um link válido de repositório GitHub, como https://github.com/usuario/repositorio, ou deixe o campo vazio.');
+                        return false;
+                    }
                 }
                 const siteName = String(data.name || parsedUrl.hostname).trim().slice(0, 100);
                 if (siteName.length < 2) {
